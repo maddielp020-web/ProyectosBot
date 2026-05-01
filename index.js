@@ -33,7 +33,6 @@ console.log('========================================');
 // ==================== INICIALIZACION_EXPRESS ====================
 const app = express();
 
-// Health check — Render y UptimeRobot lo usan para saber si el servicio está vivo
 app.get('/health', (req, res) => {
     const healthData = {
         status: 'ok',
@@ -59,7 +58,7 @@ const bot = new Telegraf(PORTERO_TOKEN);
 // ==================== HANDLER_MENSAJES ====================
 bot.on('message', async (ctx) => {
     const msg = ctx.message;
-    if (msg.edit_date) return; // ignorar mensajes editados
+    if (msg.edit_date) return;
 
     console.log(`[Index] Mensaje de ${msg.from?.username || msg.from?.first_name} (${msg.from?.id}) en chat ${msg.chat.id}: "${msg.text?.substring(0, 80)}"`);
     await portero.procesarMensaje(msg, ctx);
@@ -87,36 +86,35 @@ bot.catch(async (err, ctx) => {
 });
 
 // ==================== MODO_PRODUCCION_WEBHOOK ====================
-async function iniciarProduccion() {
-    console.log('[Index] Configurando webhook para producción...');
+// NOTA: El webhook se configura MANUALMENTE una sola vez.
+// Ver instrucciones en README.md o al final de este archivo.
+// Aquí solo se levanta el servidor y se monta el middleware de Telegraf.
 
-    const webhookUrl = `${RENDER_URL}/webhook`;
+async function iniciarProduccion() {
+    console.log('[Index] Modo PRODUCCIÓN activo.');
+    console.log('[Index] El webhook DEBE configurarse manualmente (ver README.md).');
 
     try {
-        await bot.telegram.setWebhook(webhookUrl, {
-            drop_pending_updates: true
-        });
-        console.log(`[Index] Webhook configurado: ${webhookUrl}`);
-
-        // Express maneja la ruta del webhook
+        // Montar middleware de Telegraf en Express — esto expone POST /webhook
         app.use(await bot.createWebhook({ domain: RENDER_URL }));
 
         // Iniciar Express
         app.listen(PORT, () => {
             console.log(`[Index] Servidor Express escuchando en puerto ${PORT}`);
-            console.log('[Index] Portero listo en MODO PRODUCCIÓN (webhook)');
+            console.log(`[Index] Endpoint /webhook listo para recibir mensajes.`);
+            console.log(`[Index] Health: ${RENDER_URL}/health`);
             console.log('========================================');
         });
 
-        // Avisar al Director que el Portero arrancó
+        // Avisar al Director
         if (DIRECTOR_CHAT_ID) {
             await portero.avisarDirector(
                 'Portero iniciado',
-                `Modo: Producción (webhook)\nURL: ${RENDER_URL}\nHealth: ${RENDER_URL}/health`
+                `Modo: Producción (webhook manual)\nURL: ${RENDER_URL}\nHealth: ${RENDER_URL}/health\n\nRecordatorio: si el webhook no está configurado, configura:\nhttps://api.telegram.org/bot[TOKEN]/setWebhook?url=${RENDER_URL}/webhook`
             );
         }
     } catch (error) {
-        console.error('[Index] Error al configurar webhook:', error.message);
+        console.error('[Index] Error al iniciar producción:', error.message);
         process.exit(1);
     }
 }
@@ -126,7 +124,7 @@ async function iniciarDesarrollo() {
     console.log('[Index] Iniciando polling para desarrollo local...');
 
     try {
-        // Eliminar webhook previo
+        // Eliminar webhook previo para que el polling funcione
         await bot.telegram.deleteWebhook({ drop_pending_updates: true });
         console.log('[Index] Webhook previo eliminado.');
 
@@ -138,6 +136,7 @@ async function iniciarDesarrollo() {
         // Iniciar polling
         await bot.launch();
         console.log('[Index] Portero listo en MODO DESARROLLO (polling)');
+        console.log('[Index] Envía un mensaje a @PorterosBot para probar');
         console.log('========================================');
 
         if (DIRECTOR_CHAT_ID) {
