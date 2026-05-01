@@ -45,7 +45,6 @@ const tokens = {
 };
 
 const portero = new Portero(tokens, DIRECTOR_CHAT_ID);
-
 // Registrar módulo Administrador
 portero.registrarModulo('administrador', moduloAdministrador);
 
