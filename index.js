@@ -69,8 +69,38 @@ app.get('/health', (req, res) => {
 bot.on('message', async (ctx) => {
     const msg = ctx.message;
     if (msg.edit_date) return;
+    const userId = msg.from?.id;
+    const chatType = msg.chat?.type;
 
-    console.log(`[Index] Mensaje de ${msg.from?.username || msg.from?.first_name} (${msg.from?.id}) en chat ${msg.chat.id}: "${msg.text?.substring(0, 80)}"`);
+    console.log(`[Index] Mensaje de ${msg.from?.username || msg.from?.first_name} (${userId}) en chat ${msg.chat.id} (${chatType}): "${msg.text?.substring(0, 80)}"`);
+
+    // ========== CHAT PRIVADO CON EL DIRECTOR ==========
+    if (chatType === 'private' && userId === parseInt(DIRECTOR_CHAT_ID)) {
+        const texto = msg.text || '';
+        
+        if (texto === '/status') {
+            const modulosCargados = Object.keys(portero.modulos);
+            await ctx.reply(
+                `📊 <b>ESTADO DEL SISTEMA</b>\n\n` +
+                `<b>Módulos cargados:</b> ${modulosCargados.length > 0 ? modulosCargados.join(', ') : 'ninguno'}\n` +
+                `<b>Uptime:</b> ${Math.floor(process.uptime())} segundos\n` +
+                `<b>Entorno:</b> ${IS_PRODUCTION ? 'Producción' : 'Desarrollo'}`,
+                { parse_mode: 'HTML' }
+            );
+            return;
+        }
+        
+        // Respuesta por defecto en privado
+        await ctx.reply(
+            `🛡️ <b>Portero operativo</b>\n\n` +
+            `<b>Módulos:</b> ${Object.keys(portero.modulos).join(', ') || 'ninguno'}\n` +
+            `<b>Comandos:</b> /status`,
+            { parse_mode: 'HTML' }
+        );
+        return;
+    }
+
+    // ========== RESTO DE MENSAJES: ENRUTAR A MÓDULOS ==========
     await portero.procesarMensaje(msg, ctx);
 });
 
