@@ -52,8 +52,14 @@ const tokens = {
 };
 
 const portero = new Portero(tokens, DIRECTOR_CHAT_ID);
-// Registrar módulos
+// Registrar módulo Administrador
 portero.registrarModulo('administrador', moduloAdministrador);
+
+// Registrar callbacks del módulo en el bot principal
+if (moduloAdministrador.registrarCallbacks) {
+    moduloAdministrador.registrarCallbacks(bot);
+    console.log('[Index] Callbacks del Administrador registrados.');
+}
 
 // ==================== INICIALIZACION_BOT ====================
 const bot = new Telegraf(PORTERO_TOKEN);
