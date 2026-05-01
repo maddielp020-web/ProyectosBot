@@ -1,20 +1,18 @@
 // ==================== IMPORTACIONES ====================
 const { moduloAdministrador, registrarCallbacks } = require('./src/bot');
 
-// ==================== ESTADO ====================
-let callbacksRegistrados = false;
-
-// ==================== REGISTRO_UNICO ====================
-function asegurarCallbacks(bot) {
-    if (!callbacksRegistrados) {
-        registrarCallbacks(bot);
-        callbacksRegistrados = true;
-        console.log('[Admin:index] Callbacks registrados.');
-    }
+// ==================== EXPORT ====================
+// Función principal: cumple el contrato (msg, ctx) => boolean
+// ctx es el contexto completo de Telegraf
+async function administrador(msg, ctx) {
+    return await moduloAdministrador(msg, ctx);
 }
 
-// ==================== EXPORT ====================
-module.exports = async (msg, bot) => {
-    asegurarCallbacks(bot);
-    return await moduloAdministrador(msg, bot);
-};
+// Función para registrar callbacks: recibe la instancia completa de Telegraf
+function registrarCallbacksModulo(bot) {
+    registrarCallbacks(bot);
+    console.log('[Admin:index] Callbacks registrados en bot principal.');
+}
+
+module.exports = administrador;
+module.exports.registrarCallbacks = registrarCallbacksModulo;
