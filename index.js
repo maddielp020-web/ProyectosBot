@@ -3,6 +3,7 @@ require('dotenv').config();
 const { Telegraf } = require('telegraf');
 const express = require('express');
 const Portero = require('./core/portero');
+const moduloAdministrador = require('./modulos/administrador');
 
 // ==================== CONFIGURACION ====================
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
@@ -51,6 +52,8 @@ const tokens = {
 };
 
 const portero = new Portero(tokens, DIRECTOR_CHAT_ID);
+// Registrar módulos
+portero.registrarModulo('administrador', moduloAdministrador);
 
 // ==================== INICIALIZACION_BOT ====================
 const bot = new Telegraf(PORTERO_TOKEN);
