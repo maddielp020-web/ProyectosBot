@@ -34,15 +34,8 @@ console.log('========================================');
 // ==================== INICIALIZACION_EXPRESS ====================
 const app = express();
 
-app.get('/health', (req, res) => {
-    const healthData = {
-        status: 'ok',
-        timestamp: new Date().toISOString(),
-        modulos: Object.keys(portero.modulos),
-        uptime: process.uptime()
-    };
-    res.json(healthData);
-});
+// ==================== INICIALIZACION_BOT ====================
+const bot = new Telegraf(PORTERO_TOKEN);
 
 // ==================== INICIALIZACION_PORTERO ====================
 const tokens = {
@@ -52,6 +45,7 @@ const tokens = {
 };
 
 const portero = new Portero(tokens, DIRECTOR_CHAT_ID);
+
 // Registrar módulo Administrador
 portero.registrarModulo('administrador', moduloAdministrador);
 
@@ -61,8 +55,16 @@ if (moduloAdministrador.registrarCallbacks) {
     console.log('[Index] Callbacks del Administrador registrados.');
 }
 
-// ==================== INICIALIZACION_BOT ====================
-const bot = new Telegraf(PORTERO_TOKEN);
+// ==================== HEALTH ====================
+app.get('/health', (req, res) => {
+    const healthData = {
+        status: 'ok',
+        timestamp: new Date().toISOString(),
+        modulos: Object.keys(portero.modulos),
+        uptime: process.uptime()
+    };
+    res.json(healthData);
+});
 
 // ==================== HANDLER_MENSAJES ====================
 bot.on('message', async (ctx) => {
