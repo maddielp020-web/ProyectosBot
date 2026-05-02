@@ -91,7 +91,7 @@ async function procesarComando(msg, bot) {
     if (texto.startsWith('/start')) {
         // Solo responder en chat privado Y solo al creador
         if (chatType === 'private' && userId === CREATEDOR_ID) {
-            await bot.telegram.sendMessage(
+            await bot.sendMessage(
                 chatId,
                 '🛡️ <b>PergaminosAdmin_Bot</b>\n\n' +
                 'Soy el guardián del grupo PergaminosAbiertos.\n\n' +
@@ -112,7 +112,7 @@ async function procesarComando(msg, bot) {
 
     // ========== /AYUDA ==========
     if (texto.startsWith('/ayuda')) {
-        await bot.telegram.sendMessage(
+        await bot.sendMessage(
             chatId,
             '📘 <b>AYUDA — PergaminosAdmin_Bot</b>\n\n' +
             '<b>¿Qué hace este bot?</b>\n' +
@@ -130,7 +130,7 @@ async function procesarComando(msg, bot) {
 
     // ========== /REGLAS ==========
     if (texto.startsWith('/reglas')) {
-        await bot.telegram.sendMessage(
+        await bot.sendMessage(
             chatId,
             '📜 <b>REGLAS DE PERGAMINOS ABIERTOS</b>\n\n' +
             '1. Respeta a todos los miembros del grupo.\n' +
@@ -146,7 +146,7 @@ async function procesarComando(msg, bot) {
 
     // ========== /COMPARTIR ==========
     if (texto.startsWith('/compartir')) {
-        await bot.telegram.sendMessage(
+        await bot.sendMessage(
             chatId,
             `📚 <b>PERGAMINOS ABIERTOS</b>\n\n` +
             `Un grupo dedicado al dominio público.\n\n` +
