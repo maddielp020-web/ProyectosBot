@@ -37,6 +37,18 @@ const app = express();
 // ==================== INICIALIZACION_BOT ====================
 const bot = new Telegraf(PORTERO_TOKEN);
 const adminBot = new Telegraf(ADMIN_TOKEN);
+const biblioBot = BIBLIOTECARIO_TOKEN ? new Telegraf(BIBLIOTECARIO_TOKEN) : null;
+
+// Redirigir mensajes de adminBot al handler principal
+adminBot.on('message', (ctx) => {
+    // Pasar el ctx al handler del Portero como si fuera un mensaje normal
+    bot.handleUpdate(ctx.update);
+});
+
+// Redirigir callbacks de adminBot al handler principal
+adminBot.on('callback_query', (ctx) => {
+    bot.handleUpdate(ctx.update);
+});
 
 // ==================== INICIALIZACION_PORTERO ====================
 const tokens = {
@@ -219,6 +231,9 @@ async function iniciarProduccion() {
         // Montar middleware de Telegraf en Express — esto expone POST /webhook
         app.use(await bot.createWebhook({ domain: RENDER_URL }));
         app.use(await adminBot.createWebhook({ domain: RENDER_URL }));
+        if (biblioBot) {
+    app.use(await biblioBot.createWebhook({ domain: RENDER_URL }));
+}
 
         // Iniciar Express
         app.listen(PORT, () => {
