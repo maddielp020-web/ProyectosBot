@@ -39,9 +39,27 @@ const bot = new Telegraf(PORTERO_TOKEN);
 const adminBot = new Telegraf(ADMIN_TOKEN);
 const biblioBot = BIBLIOTECARIO_TOKEN ? new Telegraf(BIBLIOTECARIO_TOKEN) : null;
 
-// Redirigir mensajes de adminBot al handler principal
-adminBot.on('message', (ctx) => {
-    // Pasar el ctx al handler del Portero como si fuera un mensaje normal
+// Handler directo para adminBot: responde con su propio token
+adminBot.on('message', async (ctx) => {
+    const msg = ctx.message;
+    if (msg.edit_date) return;
+    const chatType = msg.chat?.type;
+    const userId = msg.from?.id;
+
+    console.log(`[AdminBot] Mensaje de ${msg.from?.username || msg.from?.first_name} (${userId}) en chat ${msg.chat.id} (${chatType}): "${msg.text?.substring(0, 80)}"`);
+
+    // En grupo: enrutar al Portero para filtros
+    if (chatType === 'group' || chatType === 'supergroup') {
+        await portero.procesarMensaje(msg, ctx);
+        return;
+    }
+
+    // En privado: el Admin responde directamente (el ctx ya es de adminBot, su token)
+    await moduloAdministrador(msg, ctx);
+});
+
+// Callbacks de adminBot se pasan al Portero
+adminBot.on('callback_query', async (ctx) => {
     bot.handleUpdate(ctx.update);
 });
 
