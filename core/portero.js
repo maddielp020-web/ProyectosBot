@@ -4,7 +4,16 @@ const { Telegraf } = require('telegraf');
 // ==================== CLASE_PORTERO ====================
 class Portero {
     constructor(tokens, directorChatId) {
+        // Mapa de módulos: { nombre: funcion }
         this.modulos = {};
+        
+        // Estado de cada módulo: { nombre: { estado: 'vivo'|'caido'|'pendiente', desde: timestamp } }
+        this.estadoModulos = {};
+        
+        // Historial completo de errores (últimos 50)
+        this.historialErrores = [];
+        
+        // ID del Director para notificaciones
         this.directorChatId = directorChatId;
         
         this.bots = {
@@ -24,7 +33,7 @@ class Portero {
         console.log(`[Portero] Bots disponibles: ${Object.keys(this.bots).filter(k => this.bots[k]).join(', ')}`);
         console.log(`[Portero] Director Chat ID: ${this.directorChatId}`);
     }
-
+    
     // ==================== AVISAR_DIRECTOR ====================
     async avisarDirector(asunto, detalle) {
         if (!this.directorChatId) {
@@ -48,7 +57,8 @@ class Portero {
     // ==================== REGISTRO_MODULOS ====================
     registrarModulo(nombre, funcion) {
         this.modulos[nombre] = funcion;
-        console.log(`[Portero] Módulo registrado: ${nombre}`);
+        this.estadoModulos[nombre] = { estado: 'vivo', desde: new Date().toISOString() };
+        console.log(`[Portero] Módulo registrado: ${nombre} (estado: vivo)`);
     }
 
     // ==================== ENRUTAMIENTO ====================
@@ -79,9 +89,12 @@ class Portero {
 
         if (!this.modulos[destino]) {
             console.log(`[Portero] Módulo "${destino}" no está cargado aún.`);
-            await ctx.reply('⚠️ Este servicio aún no está disponible. Estamos trabajando en ello.', {
-                reply_to_message_id: msg.message_id
-            });
+            // Solo responder en grupo, no en privado con el Director
+            if (msg.chat.type === 'group' || msg.chat.type === 'supergroup') {
+                await ctx.reply('⚠️ Este servicio aún no está disponible. Estamos trabajando en ello.', {
+                    reply_to_message_id: msg.message_id
+                });
+            }
             return;
         }
 
@@ -93,25 +106,96 @@ class Portero {
 
         try {
             console.log(`[Portero] Enrutando a: ${destino} | De: ${msg.from?.username || msg.from?.first_name} | Texto: "${msg.text?.substring(0, 50)}"`);
-            await this.modulos[destino](msg, botTelegram);
+            const resultado = await this.modulos[destino](msg, botTelegram);
+            
+            // ========== SI ESTABA CAÍDO Y RESPONDIÓ, MARCAR VIVO ==========
+            if (this.estadoModulos[destino]?.estado === 'caido') {
+                this.estadoModulos[destino] = { estado: 'vivo', desde: new Date().toISOString() };
+                console.log(`[Portero] Módulo ${destino} recuperado: caido → vivo`);
+                await this.avisarDirector(
+                    `🟢 Módulo RECUPERADO: ${destino}`,
+                    `El módulo ${destino} volvió a funcionar correctamente.`
+                );
+            }
+            
+            if (!resultado) {
+                console.log(`[Portero] Módulo ${destino} no procesó el mensaje.`);
+            }
         } catch (error) {
             console.error(`[Portero] Error en módulo ${destino}:`, error.message);
             
-            try {
-                await ctx.reply('⚠️ Servicio no disponible en este momento. Intenta de nuevo más tarde.', {
-                    reply_to_message_id: msg.message_id
-                });
-            } catch (sendError) {
-                console.error('[Portero] No se pudo enviar mensaje de error al usuario:', sendError.message);
+            // ========== REGISTRAR ERROR EN HISTORIAL ==========
+            const errorRegistrado = {
+                timestamp: new Date().toISOString(),
+                modulo: destino,
+                causa: error.message,
+                usuario: msg.from?.username || msg.from?.first_name || 'desconocido',
+                userId: msg.from?.id,
+                chatId: msg.chat.id,
+                mensaje: msg.text?.substring(0, 100) || '[sin texto]'
+            };
+            this.historialErrores.push(errorRegistrado);
+            
+            // Mantener solo últimos 50 errores
+            if (this.historialErrores.length > 50) {
+                this.historialErrores.shift();
             }
             
-            await this.avisarDirector(
-                `Fallo en módulo: ${destino}`,
-                `Error: ${error.message}\nMódulo: ${destino}\nUsuario: ${msg.from?.username || msg.from?.first_name} (${msg.from?.id})\nChat: ${msg.chat.id}\nMensaje: ${msg.text?.substring(0, 100)}`
-            );
+            // ========== DETECTAR CAMBIO DE ESTADO ==========
+            const estadoAnterior = this.estadoModulos[destino]?.estado || 'pendiente';
+            
+            if (estadoAnterior === 'vivo') {
+                // Pasó de vivo a caído: avisar al Director
+                this.estadoModulos[destino] = { estado: 'caido', desde: new Date().toISOString() };
+                await this.avisarDirector(
+                    `🔴 Módulo CAÍDO: ${destino}`,
+                    `Error: ${error.message}\nMódulo: ${destino}\nUsuario: ${msg.from?.username || msg.from?.first_name} (${msg.from?.id})\nChat: ${msg.chat.id}\nMensaje: ${msg.text?.substring(0, 100)}`
+                );
+            } else if (estadoAnterior === 'caido') {
+                // Ya estaba caído, actualizar timestamp
+                this.estadoModulos[destino].desde = new Date().toISOString();
+            } else {
+                // Primera ejecución y falló
+                this.estadoModulos[destino] = { estado: 'caido', desde: new Date().toISOString() };
+                await this.avisarDirector(
+                    `🔴 Módulo CAÍDO: ${destino}`,
+                    `Error: ${error.message}\nMódulo: ${destino}\nUsuario: ${msg.from?.username || msg.from?.first_name} (${msg.from?.id})\nChat: ${msg.chat.id}\nMensaje: ${msg.text?.substring(0, 100)}`
+                );
+            }
+            
+            // Responder al usuario solo en grupos
+            if (msg.chat.type === 'group' || msg.chat.type === 'supergroup') {
+                try {
+                    await ctx.reply('⚠️ Servicio no disponible en este momento. Intenta de nuevo más tarde.', {
+                        reply_to_message_id: msg.message_id
+                    });
+                } catch (sendError) {
+                    console.error('[Portero] No se pudo enviar mensaje de error al usuario:', sendError.message);
+                }
+            }
         }
     }
-}
+
+    // ==================== OBTENER_ESTADO ====================
+    obtenerEstado() {
+        const estado = {};
+        for (const [nombre, datos] of Object.entries(this.estadoModulos)) {
+            estado[nombre] = datos;
+        }
+        // Marcar módulos esperados que no están cargados
+        const esperados = ['administrador', 'bibliotecario'];
+        for (const nombre of esperados) {
+            if (!estado[nombre]) {
+                estado[nombre] = { estado: 'pendiente', desde: null };
+            }
+        }
+        return estado;
+    }
+
+    // ==================== OBTENER_ERRORES ====================
+    obtenerErrores(limite = 10) {
+        return this.historialErrores.slice(-limite).reverse();
+    }
 
 // ==================== EXPORTACION ====================
 module.exports = Portero;
