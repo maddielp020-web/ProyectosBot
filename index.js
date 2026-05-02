@@ -78,25 +78,103 @@ bot.on('message', async (ctx) => {
     if (chatType === 'private' && userId === parseInt(DIRECTOR_CHAT_ID)) {
         const texto = msg.text || '';
         
-        if (texto === '/status') {
-            const modulosCargados = Object.keys(portero.modulos);
+        // ========== /STATUS ==========
+        if (texto.startsWith('/status')) {
+            const estado = portero.obtenerEstado();
+            const uptimeMin = Math.floor(process.uptime() / 60);
+            const horas = Math.floor(uptimeMin / 60);
+            const minutos = uptimeMin % 60;
+            const erroresRecientes = portero.obtenerErrores(5);
+            
+            let mensaje = `📊 <b>INFORME DEL SISTEMA — Director</b>\n\n`;
+            mensaje += `🕒 <b>Tiempo activo:</b> ${horas}h ${minutos}m\n\n`;
+            mensaje += `<b>📦 Módulos:</b>\n`;
+            
+            for (const [nombre, datos] of Object.entries(estado)) {
+                const icono = datos.estado === 'vivo' ? '✅' : datos.estado === 'caido' ? '🔴' : '⏳';
+                const descripcion = datos.estado === 'vivo' ? 'Cargado y operativo' :
+                                    datos.estado === 'caido' ? `Caído (${new Date(datos.desde).toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })})` :
+                                    'Pendiente de migración';
+                mensaje += `   ${icono} <b>${nombre}:</b> ${descripcion}\n`;
+            }
+            
+            mensaje += `\n⚠️ <b>Problemas detectados:</b> ${erroresRecientes.length > 0 ? erroresRecientes.length + ' en los últimos registros' : 'Ninguno'}`;
+            
+            if (erroresRecientes.length === 0) {
+                mensaje += `\n\n✅ Todo funciona correctamente hasta el momento. No se han registrado errores en los módulos activos.\n\n🛡️ El Portero sigue vigilando.`;
+            } else {
+                mensaje += `\n\nUsa /errores para ver el detalle.`;
+            }
+            
+            await ctx.reply(mensaje, { parse_mode: 'HTML' });
+            return;
+        }
+        
+        // ========== /ERRORES ==========
+        if (texto.startsWith('/errores')) {
+            const errores = portero.obtenerErrores(10);
+            
+            if (errores.length === 0) {
+                await ctx.reply('✅ No se ha registrado ningún error hasta el momento.', { parse_mode: 'HTML' });
+                return;
+            }
+            
+            let mensaje = `⚠️ <b>ÚLTIMOS ERRORES REGISTRADOS</b>\n\n`;
+            for (const e of errores) {
+                mensaje += `🕐 ${new Date(e.timestamp).toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}\n`;
+                mensaje += `   📦 Módulo: ${e.modulo}\n`;
+                mensaje += `   ❌ Causa: ${e.causa}\n`;
+                mensaje += `   👤 Usuario: ${e.usuario} (${e.userId})\n`;
+                mensaje += `   💬 Mensaje: "${e.mensaje}"\n\n`;
+            }
+            
+            await ctx.reply(mensaje, { parse_mode: 'HTML' });
+            return;
+        }
+        
+        // ========== /AYUDA ==========
+        if (texto.startsWith('/ayuda')) {
             await ctx.reply(
-                `📊 <b>ESTADO DEL SISTEMA</b>\n\n` +
-                `<b>Módulos cargados:</b> ${modulosCargados.length > 0 ? modulosCargados.join(', ') : 'ninguno'}\n` +
-                `<b>Uptime:</b> ${Math.floor(process.uptime())} segundos\n` +
-                `<b>Entorno:</b> ${IS_PRODUCTION ? 'Producción' : 'Desarrollo'}`,
+                `🛡️ <b>COMANDOS DISPONIBLES — Director</b>\n\n` +
+                `/status → Informe detallado del sistema\n` +
+                `/errores → Ver últimos fallos registrados\n` +
+                `/ayuda → Este mensaje\n\n` +
+                `El Portero te avisará por privado si algún módulo pasa de vivo a caído, o viceversa.`,
                 { parse_mode: 'HTML' }
             );
             return;
         }
         
-        // Respuesta por defecto en privado
-        await ctx.reply(
-            `🛡️ <b>Portero operativo</b>\n\n` +
-            `<b>Módulos:</b> ${Object.keys(portero.modulos).join(', ') || 'ninguno'}\n` +
-            `<b>Comandos:</b> /status`,
-            { parse_mode: 'HTML' }
-        );
+        // ========== RESPUESTA POR DEFECTO EN PRIVADO ==========
+        const estado = portero.obtenerEstado();
+        const errores = portero.obtenerErrores(1);
+        const ultimoError = errores.length > 0 ? errores[0] : null;
+        
+        let mensaje = `🛡️ <b>Portero activo, Director.</b>\n\n`;
+        mensaje += `<b>Estado actual:</b>\n`;
+        
+        for (const [nombre, datos] of Object.entries(estado)) {
+            const icono = datos.estado === 'vivo' ? '✅' : datos.estado === 'caido' ? '🔴' : '⏳';
+            const descripcion = datos.estado === 'vivo' ? 'Funcionando (módulo cargado)' :
+                                datos.estado === 'caido' ? 'Caído' :
+                                'Pendiente de migración';
+            mensaje += `   • ${icono} <b>${nombre}:</b> ${descripcion}\n`;
+        }
+        
+        mensaje += `\n<b>Errores detectados:</b> `;
+        if (ultimoError) {
+            mensaje += `${errores.length} registrado(s). Último: ${new Date(ultimoError.timestamp).toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}`;
+        } else {
+            mensaje += `Ninguno hasta ahora`;
+        }
+        
+        mensaje += `\n\n<b>Comandos disponibles:</b>\n`;
+        mensaje += `/status → Informe detallado del sistema\n`;
+        mensaje += `/errores → Ver últimos fallos registrados\n`;
+        mensaje += `/ayuda → Recordatorio de comandos\n\n`;
+        mensaje += `¿En qué puedo ayudarte?`;
+        
+        await ctx.reply(mensaje, { parse_mode: 'HTML' });
         return;
     }
 
