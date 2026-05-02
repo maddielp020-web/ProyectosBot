@@ -36,6 +36,7 @@ const app = express();
 
 // ==================== INICIALIZACION_BOT ====================
 const bot = new Telegraf(PORTERO_TOKEN);
+const adminBot = new Telegraf(ADMIN_TOKEN);
 
 // ==================== INICIALIZACION_PORTERO ====================
 const tokens = {
@@ -217,6 +218,7 @@ async function iniciarProduccion() {
     try {
         // Montar middleware de Telegraf en Express — esto expone POST /webhook
         app.use(await bot.createWebhook({ domain: RENDER_URL }));
+        app.use(await adminBot.createWebhook({ domain: RENDER_URL }));
 
         // Iniciar Express
         app.listen(PORT, () => {
