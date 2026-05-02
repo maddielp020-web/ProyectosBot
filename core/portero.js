@@ -106,7 +106,7 @@ class Portero {
 
         try {
             console.log(`[Portero] Enrutando a: ${destino} | De: ${msg.from?.username || msg.from?.first_name} | Texto: "${msg.text?.substring(0, 50)}"`);
-            const resultado = await this.modulos[destino](msg, botTelegram);
+            const resultado = await this.modulos[destino](msg, ctx);
             
             // ========== SI ESTABA CAÍDO Y RESPONDIÓ, MARCAR VIVO ==========
             if (this.estadoModulos[destino]?.estado === 'caido') {
