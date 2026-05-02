@@ -196,6 +196,7 @@ class Portero {
     obtenerErrores(limite = 10) {
         return this.historialErrores.slice(-limite).reverse();
     }
+}
 
 // ==================== EXPORTACION ====================
 module.exports = Portero;
