@@ -63,11 +63,6 @@ adminBot.on('callback_query', async (ctx) => {
     bot.handleUpdate(ctx.update);
 });
 
-// Redirigir callbacks de adminBot al handler principal
-adminBot.on('callback_query', (ctx) => {
-    bot.handleUpdate(ctx.update);
-});
-
 // ==================== INICIALIZACION_PORTERO ====================
 const tokens = {
     portero: PORTERO_TOKEN,
@@ -107,9 +102,42 @@ bot.on('message', async (ctx) => {
 
     // ========== CHAT PRIVADO CON EL DIRECTOR (solo Portero) ==========
     const texto = msg.text || '';
-    const esPortero = ctx.botInfo?.username === 'PorterosBot';
-    
-    if (chatType === 'private' && userId === parseInt(DIRECTOR_CHAT_ID) && esPortero) {
+    if (chatType === 'private' && userId === parseInt(DIRECTOR_CHAT_ID)) {
+        
+        // ========== HOLA ==========
+        const esSaludo = /^hola\b/i.test(texto) || texto === 'Hola';
+        if (esSaludo) {
+            const estado = portero.obtenerEstado();
+            const errores = portero.obtenerErrores(1);
+            const ultimoError = errores.length > 0 ? errores[0] : null;
+            
+            let mensaje = `🛡️ <b>Portero activo, Director.</b>\n\n`;
+            mensaje += `<b>Estado actual:</b>\n`;
+            
+            for (const [nombre, datos] of Object.entries(estado)) {
+                const icono = datos.estado === 'vivo' ? '✅' : datos.estado === 'caido' ? '🔴' : '⏳';
+                const descripcion = datos.estado === 'vivo' ? 'Funcionando (módulo cargado)' :
+                                    datos.estado === 'caido' ? 'Caído' :
+                                    'Pendiente de migración';
+                mensaje += `   • ${icono} <b>${nombre}:</b> ${descripcion}\n`;
+            }
+            
+            mensaje += `\n<b>Errores detectados:</b> `;
+            if (ultimoError) {
+                mensaje += `${errores.length} registrado(s). Último: ${new Date(ultimoError.timestamp).toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}`;
+            } else {
+                mensaje += `Ninguno hasta ahora`;
+            }
+            
+            mensaje += `\n\n<b>Comandos disponibles:</b>\n`;
+            mensaje += `/status → Informe detallado del sistema\n`;
+            mensaje += `/errores → Ver últimos fallos registrados\n`;
+            mensaje += `/ayuda → Recordatorio de comandos\n\n`;
+            mensaje += `¿En qué puedo ayudarte?`;
+            
+            await ctx.reply(mensaje, { parse_mode: 'HTML' });
+            return;
+        }
         
         // ========== /STATUS ==========
         if (texto.startsWith('/status')) {
