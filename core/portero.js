@@ -98,11 +98,7 @@ class Portero {
             return;
         }
 
-        const botTelegram = destino === 'administrador' 
-            ? this.bots.administrador 
-            : destino === 'bibliotecario' 
-                ? this.bots.bibliotecario 
-                : this.bots.portero;
+        // El módulo recibe el ctx completo para usar el token correcto
 
         try {
             console.log(`[Portero] Enrutando a: ${destino} | De: ${msg.from?.username || msg.from?.first_name} | Texto: "${msg.text?.substring(0, 50)}"`);
