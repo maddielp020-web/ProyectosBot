@@ -75,6 +75,7 @@ bot.on('message', async (ctx) => {
     console.log(`[Index] Mensaje de ${msg.from?.username || msg.from?.first_name} (${userId}) en chat ${msg.chat.id} (${chatType}): "${msg.text?.substring(0, 80)}"`);
 
     // ========== CHAT PRIVADO CON EL DIRECTOR (solo Portero) ==========
+    const texto = msg.text || '';
     const esPortero = ctx.botInfo?.username === 'PorterosBot';
     
     if (chatType === 'private' && userId === parseInt(DIRECTOR_CHAT_ID) && esPortero) {
